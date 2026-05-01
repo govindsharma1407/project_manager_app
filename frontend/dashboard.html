@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <style>
+    body { margin: 0; font-family: Arial; background: #f1f5f9; }
+    nav {
+      background: #0f172a; color: white; padding: 18px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .container { padding: 25px; }
+    .cards { display: flex; gap: 20px; }
+    .card {
+      flex: 1; background: white; padding: 20px; border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    input, select, textarea, button {
+      padding: 10px; margin: 8px 0; width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background: #2563eb; color: white; border: none;
+      border-radius: 8px; cursor: pointer;
+    }
+    li {
+      background: white; padding: 12px; margin: 10px 0;
+      border-radius: 8px; list-style: none;
+    }
+  </style>
+</head>
+
+<body onload="initDashboard()">
+
+<nav>
+  <h2>Project Manager</h2>
+  <button onclick="logout()" style="width:100px;background:#dc2626">Logout</button>
+</nav>
+
+<div class="container">
+
+  <div class="cards">
+    <div class="card">
+      <h3>Total Tasks</h3>
+      <h2 id="totalTasks">0</h2>
+    </div>
+    <div class="card">
+      <h3>Completed</h3>
+      <h2 id="doneTasks">0</h2>
+    </div>
+    <div class="card">
+      <h3>Pending</h3>
+      <h2 id="pendingTasks">0</h2>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Create Project</h3>
+    <input id="projectName" placeholder="Project name">
+    <textarea id="projectDescription" placeholder="Project description"></textarea>
+    <button onclick="createProject()">Create Project</button>
+  </div>
+
+  <div class="card">
+    <h3>Create Task</h3>
+
+    <select id="projectSelect">
+      <option value="">Loading projects...</option>
+    </select>
+
+    <input id="taskTitle" placeholder="Task title">
+
+    <select id="taskStatus">
+      <option value="todo">Todo</option>
+      <option value="in-progress">In Progress</option>
+      <option value="done">Done</option>
+    </select>
+
+    <input id="deadline" type="date">
+
+    <button onclick="createTask()">Add Task</button>
+  </div>
+
+  <h3>Tasks</h3>
+  <ul id="tasks"></ul>
+
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+
+if (!token) {
+  window.location.href = "index.html";
+}
+
+async function initDashboard() {
+  await loadProjects();
+  await loadDashboard();
+}
+
+async function loadProjects() {
+  const res = await fetch("http://localhost:5000/api/projects", {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+
+  const data = await res.json();
+  const projectSelect = document.getElementById("projectSelect");
+
+  if (!res.ok) {
+    projectSelect.innerHTML = `<option value="">Failed to load projects</option>`;
+    return;
+  }
+
+  if (data.length === 0) {
+    projectSelect.innerHTML = `<option value="">No project found</option>`;
+    return;
+  }
+
+  projectSelect.innerHTML = data
+    .map(p => `<option value="${p._id}">${p.name}</option>`)
+    .join("");
+}
+
+async function createProject() {
+  const name = document.getElementById("projectName").value;
+  const description = document.getElementById("projectDescription").value;
+
+  if (!name) {
+    alert("Project name is required");
+    return;
+  }
+
+  const res = await fetch("http://localhost:5000/api/projects", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token
+    },
+    body: JSON.stringify({
+      name,
+      description
+    })
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    alert("Project created successfully");
+    document.getElementById("projectName").value = "";
+    document.getElementById("projectDescription").value = "";
+    await loadProjects();
+  } else {
+    alert(data.message || "Only admin can create project");
+  }
+}
+
+async function loadDashboard() {
+  const res = await fetch("http://localhost:5000/api/tasks", {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || "Failed to load tasks");
+    return;
+  }
+
+  document.getElementById("totalTasks").innerText = data.length;
+  document.getElementById("doneTasks").innerText =
+    data.filter(t => t.status === "done").length;
+  document.getElementById("pendingTasks").innerText =
+    data.filter(t => t.status !== "done").length;
+
+  document.getElementById("tasks").innerHTML = data.map(t => `
+    <li>
+      <b>${t.title}</b><br>
+      Project: ${t.project ? t.project.name : "No project"}<br>
+      Status: ${t.status}<br>
+      Deadline: ${t.deadline ? new Date(t.deadline).toLocaleDateString() : "No deadline"}
+    </li>
+  `).join("");
+}
+
+async function createTask() {
+  const projectId = document.getElementById("projectSelect").value;
+
+  if (!projectId) {
+    alert("Please select a project first");
+    return;
+  }
+
+  const res = await fetch("http://localhost:5000/api/tasks", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token
+    },
+    body: JSON.stringify({
+      title: document.getElementById("taskTitle").value,
+      status: document.getElementById("taskStatus").value,
+      deadline: document.getElementById("deadline").value,
+      project: projectId
+    })
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    alert("Task created");
+    document.getElementById("taskTitle").value = "";
+    document.getElementById("deadline").value = "";
+    await loadDashboard();
+  } else {
+    alert(data.message || "Only admin can create task");
+  }
+}
+
+function logout() {
+  localStorage.clear();
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>

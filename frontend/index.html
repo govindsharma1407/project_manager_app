@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Project Management App</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box {
+      width: 380px;
+      background: #111827;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.4);
+    }
+    h2 { text-align: center; }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .link {
+      text-align: center;
+      color: #60a5fa;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2 id="formTitle">Login</h2>
+
+  <input id="name" placeholder="Name" style="display:none">
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <select id="role" style="display:none">
+    <option value="member">Member</option>
+    <option value="admin">Admin</option>
+  </select>
+
+  <button onclick="submitForm()">Login</button>
+
+  <div class="link" onclick="toggleForm()">
+    Don't have an account? Signup
+  </div>
+</div>
+
+<script>
+let isSignup = false;
+
+function toggleForm() {
+  isSignup = !isSignup;
+
+  document.getElementById("formTitle").innerText = isSignup ? "Signup" : "Login";
+  document.querySelector("button").innerText = isSignup ? "Signup" : "Login";
+  document.querySelector(".link").innerText = isSignup
+    ? "Already have an account? Login"
+    : "Don't have an account? Signup";
+
+  document.getElementById("name").style.display = isSignup ? "block" : "none";
+  document.getElementById("role").style.display = isSignup ? "block" : "none";
+}
+
+async function submitForm() {
+  const url = isSignup
+    ? "http://localhost:5000/api/auth/signup"
+    : "http://localhost:5000/api/auth/login";
+
+  const body = isSignup
+    ? {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value
+      }
+    : {
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value
+      };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    if (isSignup) {
+      alert("Signup successful. Now login.");
+      toggleForm();
+    } else {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
+      window.location.href = "dashboard.html";
+    }
+  } else {
+    alert(data.message || "Something went wrong");
+  }
+}
+</script>
+
+</body>
+</html>
