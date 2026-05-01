@@ -5,7 +5,7 @@
   <style>
     body {
       margin: 0;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #0f172a, #1e293b);
       color: white;
       height: 100vh;
@@ -27,6 +27,7 @@
       margin: 10px 0;
       border-radius: 8px;
       border: none;
+      box-sizing: border-box;
     }
     button {
       background: #2563eb;
@@ -56,68 +57,83 @@
     <option value="admin">Admin</option>
   </select>
 
-  <button onclick="submitForm()">Login</button>
+  <button id="submitBtn">Login</button>
 
-  <div class="link" onclick="toggleForm()">
+  <div class="link" id="toggleBtn">
     Don't have an account? Signup
   </div>
 </div>
 
 <script>
+const API_BASE = "https://projectmanagerapp-production-e8f6.up.railway.app";
 let isSignup = false;
 
-function toggleForm() {
+const formTitle = document.getElementById("formTitle");
+const nameInput = document.getElementById("name");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const roleInput = document.getElementById("role");
+const submitBtn = document.getElementById("submitBtn");
+const toggleBtn = document.getElementById("toggleBtn");
+
+toggleBtn.addEventListener("click", () => {
   isSignup = !isSignup;
 
-  document.getElementById("formTitle").innerText = isSignup ? "Signup" : "Login";
-  document.querySelector("button").innerText = isSignup ? "Signup" : "Login";
-  document.querySelector(".link").innerText = isSignup
+  formTitle.innerText = isSignup ? "Signup" : "Login";
+  submitBtn.innerText = isSignup ? "Signup" : "Login";
+  toggleBtn.innerText = isSignup
     ? "Already have an account? Login"
     : "Don't have an account? Signup";
 
-  document.getElementById("name").style.display = isSignup ? "block" : "none";
-  document.getElementById("role").style.display = isSignup ? "block" : "none";
-}
+  nameInput.style.display = isSignup ? "block" : "none";
+  roleInput.style.display = isSignup ? "block" : "none";
+});
 
-async function submitForm() {
-  const url = isSignup
-    ? "http://localhost:5000/api/auth/signup"
-    : "http://localhost:5000/api/auth/login";
+submitBtn.addEventListener("click", async () => {
+  try {
+    const url = isSignup
+      ? `${API_BASE}/api/auth/signup`
+      : `${API_BASE}/api/auth/login`;
 
-  const body = isSignup
-    ? {
-        name: document.getElementById("name").value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        role: document.getElementById("role").value
-      }
-    : {
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value
-      };
+    const body = isSignup
+      ? {
+          name: nameInput.value.trim(),
+          email: emailInput.value.trim(),
+          password: passwordInput.value,
+          role: roleInput.value
+        }
+      : {
+          email: emailInput.value.trim(),
+          password: passwordInput.value
+        };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (res.ok) {
+    if (!res.ok) {
+      alert(data.message || "Something went wrong");
+      return;
+    }
+
     if (isSignup) {
       alert("Signup successful. Now login.");
-      toggleForm();
+      toggleBtn.click();
     } else {
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
       window.location.href = "dashboard.html";
     }
-  } else {
-    alert(data.message || "Something went wrong");
+  } catch (error) {
+    alert("Error: " + error.message);
   }
-}
+});
 </script>
-
 </body>
 </html>
